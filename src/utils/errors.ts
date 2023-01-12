@@ -9,7 +9,7 @@ export const NOT_FOUND = {
 };
 export const INTERNAL_SERVER_ERROR = {
   code: 500,
-  message: 'Ошибка на стороне сервера, свяжитесь с технической поддержкой.',
+  message: 'На сервере произошла ошибка.',
 };
 export const BAD_REQUEST = {
   code: 400,
