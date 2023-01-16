@@ -30,3 +30,8 @@ export const DONE = {
   code: 200,
   message: 'Запрос выполнен.',
 };
+
+export const AUTHORIZATION = {
+  code: 401,
+  message: 'Неправильная почта или пароль',
+};

@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import {
-  CREATED, INTERNAL_SERVER_ERROR, NOT_FOUND, BAD_REQUEST, DONE,
+  CREATED, INTERNAL_SERVER_ERROR, NOT_FOUND, BAD_REQUEST, DONE, AUTHORIZATION,
 } from '../utils/errors';
 import User from '../models/user';
+import { TOKEN_PASSWORD } from '../utils/const';
 
 export const getUsers = (req: Request, res: Response) => User.find({})
   .then((users) => res.status(DONE.code).send({ data: users }))
@@ -29,8 +31,12 @@ export const getUserById = (req: Request, res: Response) => {
 };
 
 export const createUser = (req: Request, res: Response) => {
-  const { name, about, avatar } = req.body;
-  return User.create({ name, about, avatar })
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
+  return User.create({
+    name, about, avatar, email, password,
+  })
     .then((user) => res
       .status(CREATED.code)
       .send({ data: user }))
