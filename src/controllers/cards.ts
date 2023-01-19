@@ -1,101 +1,97 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import {
   CREATED, INTERNAL_SERVER_ERROR, NOT_FOUND, BAD_REQUEST, DONE,
+  FORBIDDEN,
 } from '../utils/errors';
 import Card from '../models/card';
+import { CAST_ERROR, VALIDATION_ERROR } from '../utils/const';
+import BadRequestError from '../errors/BadRequestError';
+import { ISessionRequest } from '../utils/types';
+import NotFoundError from '../errors/NotFoundError';
+import ForbiddenError from '../errors/ForbiddenError';
 
-export const getCards = (req: Request, res: Response) => Card.find({})
+export const getCards = (req: Request, res: Response, next: NextFunction) => Card.find({})
   .then((cards) => res.status(DONE.code).send({ data: cards }))
-  .catch(() => res
-    .status(INTERNAL_SERVER_ERROR.code)
-    .send({ message: INTERNAL_SERVER_ERROR.message }));
+  .catch(next);
 
-export const createCard = (req: Request, res: Response) => {
+export const createCard = (req: Request, res: Response, next: NextFunction) => {
   const { name, link } = req.body;
   const owner = (req as any).user?._id;
   return Card.create({ name, link, owner })
     .then((card) => res.status(CREATED.code).send({ data: card }))
     .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res
-          .status(BAD_REQUEST.code)
-          .send({ message: BAD_REQUEST.message.cardCreate });
+      if (err.name === VALIDATION_ERROR) {
+        next(new BadRequestError(BAD_REQUEST.message.cardCreate));
       } else {
-        res
-          .status(INTERNAL_SERVER_ERROR.code)
-          .send({ message: INTERNAL_SERVER_ERROR.message });
+        next(err);
       }
     });
 };
 
-export const deleteCard = (req: Request, res: Response) => {
+export const deleteCard = (req: Request, res: Response, next: NextFunction) => {
   const _id = req.params.cardId;
-  return Card.deleteOne({ _id })
-    .orFail(new Error('NotValidDeleteCard'))
-    .then((data) => res.status(DONE.code).send({ data }))
+  Card.findById(_id)
+    .then((card) => {
+      if (!card) {
+        throw new NotFoundError(NOT_FOUND.message.cardDelete);
+      }
+      if (card.owner.toString() !== _id) {
+        throw new ForbiddenError(FORBIDDEN.message.card);
+      }
+      return Card.findByIdAndDelete(_id);
+    })
+    .then(() => res.status(DONE.code).send({ message: DONE.message.deleteCard }))
     .catch((err) => {
-      if (err.message === 'NotValidDeleteCard') {
-        res
-          .status(NOT_FOUND.code)
-          .send({ message: NOT_FOUND.message.cardDelete });
+      if (err.name === CAST_ERROR) {
+        next(new BadRequestError(err.message));
       } else {
-        res
-          .status(INTERNAL_SERVER_ERROR.code)
-          .send({ message: INTERNAL_SERVER_ERROR.message });
+        next(err);
       }
     });
 };
 
-export const likeCard = (req: Request, res: Response) => {
-  const id = req.params.cardId;
-  const owner = (req as any).user._id;
-  return Card.findByIdAndUpdate(
+export const likeCard = (req: ISessionRequest, res: Response, next: NextFunction) => {
+  const id = req.params;
+  const owner = req.user?._id;
+  Card.findByIdAndUpdate(
     id,
     { $addToSet: { likes: owner } },
     { new: true, runValidators: true },
   )
-    .orFail(new Error('NotValidLikeCard'))
     .then((card) => {
       if (!card) {
-        res.status(NOT_FOUND.code).send({ message: NOT_FOUND.message.actionLikeCard });
+        throw new NotFoundError(NOT_FOUND.message.actionLikeCard);
       } else {
         res.status(DONE.code).send({ data: card });
       }
     })
     .catch((err) => {
-      if (err.message === 'NotValidLikeCard') {
-        res
-          .status(BAD_REQUEST.code)
-          .send({ message: BAD_REQUEST.message.actionLikeCard });
+      if (err.name === CAST_ERROR) {
+        next(new BadRequestError(BAD_REQUEST.message.actionLikeCard));
       } else {
-        res
-          .status(INTERNAL_SERVER_ERROR.code)
-          .send({ message: INTERNAL_SERVER_ERROR.message });
+        next(err);
       }
     });
 };
 
-export const dislikeCard = (req: Request, res: Response) => {
+export const dislikeCard = (req: ISessionRequest, res: Response, next: NextFunction) => {
   const id = req.params.cardId;
   const owner = (req as any).user._id;
-  return Card.findByIdAndUpdate(
+  Card.findByIdAndUpdate(
     id,
     { $pull: { likes: owner } },
     { new: true, runValidators: true },
   )
-    .orFail(new Error('NotValidDisLikeCard'))
     .then((card) => {
       if (!card) {
-        res.status(NOT_FOUND.code).send({ message: NOT_FOUND.message.actionLikeCard });
+        throw new NotFoundError(NOT_FOUND.message.actionLikeCard);
       } else {
         res.status(DONE.code).send({ data: card });
       }
     })
     .catch((err) => {
-      if (err.message === 'NotValidDisLikeCard') {
-        res
-          .status(BAD_REQUEST.code)
-          .send({ message: BAD_REQUEST.message.actionLikeCard });
+      if (err.name === CAST_ERROR) {
+        next(new BadRequestError(BAD_REQUEST.message.actionLikeCard));
       } else {
         res
           .status(INTERNAL_SERVER_ERROR.code)

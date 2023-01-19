@@ -1,8 +1,11 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import UnauthorizedError from '../errors/UnauthorizedError';
+import { NOT_FOUND } from '../utils/errors';
 import {
   DEFAULT_USER_ABOUT, DEFAULT_USER_AVATAR, DEFAULT_USER_NAME, regexEmail, regexUrl,
 } from '../utils/const';
-import { TUser } from '../utils/types';
+import { IUserModel, TUser } from '../utils/types';
 
 const userSchema = new mongoose.Schema<TUser>({
   name: {
@@ -48,4 +51,21 @@ const userSchema = new mongoose.Schema<TUser>({
   },
 });
 
-export default mongoose.model<TUser>('User', userSchema);
+userSchema.static('findUserByCredentials', function findUserByCredentials(email: string, password: string) {
+  return this.findOne({ email })
+    .select('+password')
+    .then((user: TUser | null) => {
+      if (!user) {
+        return Promise.reject(new UnauthorizedError(NOT_FOUND.message.getUser));
+      }
+      return bcrypt.compare(password, user.password)
+        .then((matched) => {
+          if (!matched) {
+            return Promise.reject(new UnauthorizedError(NOT_FOUND.message.getUser));
+          }
+          return user;
+        });
+    });
+});
+
+export default mongoose.model<TUser, IUserModel>('User', userSchema);
