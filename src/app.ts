@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { errors } from 'celebrate';
 import rateLimit from 'express-rate-limit';
+import { isSignInRequestValid, isSignUpRequestValid } from './validator/isSigin';
 import authMiddleware from './middlewares/auth';
 import errorMiddleware from './middlewares/error';
 import { DEFAULT_PORT, DEFAULT_DB_URL } from './utils/const';
@@ -26,12 +27,16 @@ app.use(express.json());
 
 app.use(requestLogger);
 
-app.post('/signin', login);
-app.post('/signup', createUser);
+app.post('/signin', isSignInRequestValid, login);
+app.post('/signup', isSignUpRequestValid, createUser);
 
 app.use(authMiddleware);
 
 app.use(router);
+
+app.use((req, res) => {
+  res.status(404).render('404');
+});
 
 app.use(errorLogger);
 
